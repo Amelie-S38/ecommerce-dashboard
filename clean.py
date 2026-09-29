@@ -1,4 +1,5 @@
 import pandas as pd
+import csv
 df = pd.read_csv("data.csv")
 
 # Conversion de la colonne InvoiceDate en format date
@@ -116,7 +117,8 @@ ventes["Country"] = ventes["Country"].replace({"Usa": "USA", "Rsa": "RSA"})
 print(ventes["Country"].unique())
 
 # Export du fichier ventes en csv
-ventes.to_csv("ventes_clean.csv", index=False, encoding="utf-8-sig")
+import csv
+ventes.to_csv("ventes_clean.csv", index=False, encoding="utf-8-sig", quoting=csv.QUOTE_ALL)
 
 # Création d'une table dim_date
 toutes_les_dates = pd.date_range(
@@ -139,3 +141,19 @@ print("Nombre de jours :", len(dim_date))
 
 # Export de la table en csv
 dim_date.to_csv("dim_date.csv", index=False, encoding="utf-8-sig")
+
+# Diagnostique problème sur colonne LineTotal sur Power BI
+print("\n--- Diagnostic LineTotal ---")
+print("Type de la colonne :", ventes["LineTotal"].dtype)
+
+print("Valeurs manquantes :", ventes["LineTotal"].isnull().sum())
+
+conversion_test = pd.to_numeric(ventes["LineTotal"], errors="coerce")
+lignes_problematiques = ventes[conversion_test.isnull()]
+print("\nNombre de lignes qui ne se convertissent pas en nombre :", len(lignes_problematiques))
+print(lignes_problematiques[["Invoice", "Quantity", "Price", "LineTotal"]].head(20))
+
+print("\n--- Descriptions contenant une virgule ---")
+descriptions_avec_virgule = ventes[ventes["Description"].str.contains(",", na=False)]
+print("Nombre de lignes concernées :", len(descriptions_avec_virgule))
+print(descriptions_avec_virgule[["Invoice", "Description"]].head(10))
