@@ -64,6 +64,20 @@ prix_invalides = df[df["Price"] <= 0]
 print("Nombre de lignes :", len(prix_invalides))
 print(prix_invalides[["Invoice", "Description", "Quantity", "Price"]].head(10))
 
+# Repérer les codes "non-produits"
+print("\n--- Codes produits suspects (sans chiffre) ---")
+
+codes_suspects = ventes[~ventes["StockCode"].str.contains(r"\d", regex=True)]
+
+print(codes_suspects["StockCode"].value_counts()) 
+
+# Création d'une liste des codes à exclure et filtration
+codes_a_exclure = ["POST", "DOT", "M", "m", "BANK CHARGES", "ADJUST", "D", "AMAZONFEE", "B", "S"]
+ventes = ventes[~ventes["StockCode"].isin(codes_a_exclure)]
+
+print("\n--- Lignes après exclusion des codes non-commerciaux ---")
+print("Nombre de lignes :", len(ventes))
+
 # Création des colonnes temporelles
 ventes["Year"] = ventes["InvoiceDate"].dt.year
 ventes["Quarter"] = ventes["InvoiceDate"].dt.quarter
