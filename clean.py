@@ -90,6 +90,9 @@ print(ventes[["InvoiceDate", "Year", "Quarter", "Month"]].head(10))
 # Ajout d'une colonne YearMonth 
 ventes["YearMonth"] = ventes["InvoiceDate"].dt.to_period("M").astype(str)
 
+# Ajout d'une colonne Date pure pour réliser le dashboard
+ventes["DateSeule"] = ventes["InvoiceDate"].dt.normalize()
+
 print("\n--- Aperçu YearMonth ---")
 print(ventes[["InvoiceDate", "YearMonth"]].head(10))
 print("\nValeurs uniques de YearMonth :", ventes["YearMonth"].nunique())
