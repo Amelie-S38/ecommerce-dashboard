@@ -1,6 +1,7 @@
 # DASHBOARD PERFORMANCE E-COMMERCE
 
 Dashboard Power BI présentant les KPI clés d'un e-commerce (chiffre d'affaires, commandes, clients, panier moyen) avec filtres dynamiques et suivi de l'évolution temporelle des ventes.
+![Aperçu du dashboard](screenshots/dashboard.png)
 
 ## Contexte
 
