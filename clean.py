@@ -2,6 +2,12 @@ import pandas as pd
 import csv
 df = pd.read_csv("data.csv")
 
+# Suppression des doublons
+print("\n--- Suppression des doublons exacts ---")
+print("Lignes avant déduplication :", len(df))
+df = df.drop_duplicates()
+print("Lignes après déduplication :", len(df))
+
 # Conversion de la colonne InvoiceDate en format date
 print("Type avant conversion :", df["InvoiceDate"].dtype)
 
@@ -17,6 +23,37 @@ print("Date max :", df["InvoiceDate"].max())
 
 print("\n--- Nombre de lignes par mois ---")
 print(df["InvoiceDate"].dt.month.value_counts().sort_index())
+
+# Hypothèse de l'annulation : recherche de la quantité -80995
+print("\n--- Recherche de la quantité -80995 ---")
+annulation_correspondante = df[df["Quantity"] == -80995]
+print(annulation_correspondante[["Invoice", "StockCode", "Customer ID", "InvoiceDate", "Quantity", "Price"]])
+
+# Détection de toutes les ventes annulées très rapidement (cas similaires)
+print("\n--- Recherche de ventes annulées très rapidement ---")
+
+annulations_diag = df[df["Invoice"].str.startswith("C")].copy()
+ventes_positives_diag = df[df["Quantity"] > 0].copy()
+
+print("Nombre total d'annulations :", len(annulations_diag))
+
+annulations_diag["QuantiteAbs"] = annulations_diag["Quantity"].abs()
+
+correspondances = annulations_diag.merge(
+    ventes_positives_diag,
+    left_on=["Customer ID", "StockCode", "QuantiteAbs"],
+    right_on=["Customer ID", "StockCode", "Quantity"],
+    suffixes=("_annulation", "_vente")
+)
+
+print("\nNombre de correspondances trouvées :", len(correspondances))
+
+correspondances["EcartTemps"] = (correspondances["InvoiceDate_annulation"] - correspondances["InvoiceDate_vente"]).abs()
+
+annulations_rapides = correspondances[correspondances["EcartTemps"] <= pd.Timedelta(hours=1)]
+
+print("\nNombre d'annulations très rapides (moins d'1h) :", len(annulations_rapides))
+print(annulations_rapides[["Invoice_vente", "Invoice_annulation", "Customer ID", "StockCode", "Quantity_vente", "EcartTemps"]].sort_values("Quantity_vente", ascending=False).head(20))
 
 # Création d'une colonne pour les commandes annulées
 df["IsCancelled"] = df["Invoice"].str.startswith("C")
@@ -56,6 +93,16 @@ print("\n--- Lignes après filtrage ---")
 print("Total lignes brutes :", len(df))
 print("Total lignes ventes normales :", len(ventes))
 print("\nCA total (ventes normales) :", ventes["LineTotal"].sum())
+
+# Exclusion des ventes annulées très rapidement (moins d'1h)
+cles_a_exclure = set(zip(annulations_rapides["Invoice_vente"], annulations_rapides["StockCode"]))
+ventes["cle_temp"] = list(zip(ventes["Invoice"], ventes["StockCode"]))
+ventes = ventes[~ventes["cle_temp"].isin(cles_a_exclure)]
+ventes = ventes.drop(columns="cle_temp")
+
+print("\n--- Lignes après exclusion des ventes annulées rapidement ---")
+print("Nombre de lignes :", len(ventes))
+print("CA total (après cette exclusion) :", ventes["LineTotal"].sum())
 
 # vérification des lignes manquantes
 print("\n--- Lignes avec Price <= 0 ---")
@@ -160,3 +207,16 @@ print("\n--- Descriptions contenant une virgule ---")
 descriptions_avec_virgule = ventes[ventes["Description"].str.contains(",", na=False)]
 print("Nombre de lignes concernées :", len(descriptions_avec_virgule))
 print(descriptions_avec_virgule[["Invoice", "Description"]].head(10))
+
+# Analyse d'un pic suspect
+print("\n--- Analyse du pic du 7 décembre 2010 ---")
+jour_suspect = ventes[ventes["DateSeule"] == "2010-12-07"]
+print("Nombre de lignes ce jour-là :", len(jour_suspect))
+print("CA de ce jour :", jour_suspect["LineTotal"].sum())
+print(jour_suspect[["Invoice", "Customer ID", "StockCode", "Quantity", "Price", "LineTotal"]].sort_values("LineTotal", ascending=False).head(10))
+
+# Hypothèse doublon de facture
+print("\n--- Recherche de doublons exacts dans ventes ---")
+doublons = ventes[ventes.duplicated(subset=["Invoice", "StockCode", "Quantity", "Price", "InvoiceDate"], keep=False)]
+print("Nombre de lignes concernées par des doublons :", len(doublons))
+print("CA total représenté par ces doublons :", doublons["LineTotal"].sum())
